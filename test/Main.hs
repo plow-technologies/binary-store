@@ -8,14 +8,12 @@ import Test.Tasty
 import qualified Test.Tasty.QuickCheck as QC
 import Test.QuickCheck
 
-import Data.Maybe (fromJust)
 import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where
   arbitrary = do
     l <- choose (0,12 :: Int)
-    xs <- vector (2^l)
-    return $ fromJust $ BL.fromList xs
+    BL.replicateA l arbitrary
 
 instance Arbitrary Direction where
   arbitrary = elements [FromLeft,FromRight]
@@ -51,26 +49,26 @@ main :: IO ()
 main = defaultMain $ testGroup "binary-store"
   [ testGroup "Double"
     [ QC.testProperty "read/create"
-         $ \xs dr c -> forAll (choose (1,255))
-         $ \d       -> forAll (choose (0,d))
-         $ \n       -> ( createBinaryStore dr n d c xs >>= fromDecoded . readBinaryStore )
-                    ~= Right (xs :: BinList Double)
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList Double)
     , QC.testProperty "read/decode/encode/create"
-         $ \xs dr c -> forAll (choose (1,255))
-         $ \d       -> forAll (choose (0,d))
-         $ \n       -> ( createBinaryStore dr n d c xs >>= decode . encode >>= fromDecoded . readBinaryStore )
-                    ~= Right (xs :: BinList Double)
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= decode . encode >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList Double)
       ]
   , testGroup "Maybe Double"
     [ QC.testProperty "read/create"
-         $ \xs dr c -> forAll (choose (1,255))
-         $ \d       -> forAll (choose (0,d))
-         $ \n       -> ( createBinaryStore dr n d c xs >>= fromDecoded . readBinaryStore )
-                    ~= Right (xs :: BinList (Maybe Double))
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList (Maybe Double))
     , QC.testProperty "read/decode/encode/create"
-         $ \xs dr c -> forAll (choose (1,255))
-         $ \d       -> forAll (choose (0,d))
-         $ \n       -> ( createBinaryStore dr n d c xs >>= decode . encode >>= fromDecoded . readBinaryStore )
-                    ~= Right (xs :: BinList (Maybe Double))
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= decode . encode >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList (Maybe Double))
       ]
     ]

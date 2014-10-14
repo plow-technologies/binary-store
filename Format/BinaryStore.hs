@@ -32,6 +32,7 @@ module Format.BinaryStore (
     , averageConstant
     , bsDirection
     , bsCompression
+    , bsBZip
     , bsLength
     , bsData
     ) where
@@ -63,6 +64,9 @@ import Data.ReinterpretCast (doubleToWord,wordToDouble)
 
 -- Binary Transform
 import Data.BinaryList.Algorithm.BinaryTransform
+
+-- BZip compression
+import qualified Codec.Compression.BZip as BZ
 
 -- Utils
 
@@ -117,6 +121,7 @@ data BinaryStore = BinaryStore {
   , bsDenominator :: Word8      -- ^ Denominator of the Average Constant.
   , bsDirection   :: Direction  -- ^ Direction of encoding.
   , bsCompression :: Bool       -- ^ Whether zero compression is used or not.
+  , bsBZip        :: Bool       -- ^ Wheter bzip compression is used or not.
   , bsLength      :: Word8      -- ^ Length index of the data.
   , bsData        :: ByteString -- ^ Data (which might be compressed).
   }
@@ -133,6 +138,7 @@ encode bs = runPut $ do
   putWord8 $ bsDenominator bs
   putDirection $ bsDirection bs
   put $ bsCompression bs -- False encodes as 0. True encodes as 1.
+  put $ bsBZip bs
   putWord8 $ bsLength bs
   putLazyByteString $ bsData bs
 
@@ -143,10 +149,10 @@ encode bs = runPut $ do
 decode :: ByteString -> Either String BinaryStore
 decode bs = case runGetOrFail getHeader bs of
   Left (_,off,err) -> Left $ err ++ ", after " ++ show off ++ " bytes"
-  Right (b,_,(m,n,d,dr,c,l)) -> Right $ BinaryStore m n d dr c l b
+  Right (b,_,(m,n,d,dr,c,bz,l)) -> Right $ BinaryStore m n d dr c bz l b
 
 -- | Binary Store Header parser.
-getHeader :: Get (Mode,Word8,Word8,Direction,Bool,Word8)
+getHeader :: Get (Mode,Word8,Word8,Direction,Bool,Bool,Word8)
 getHeader = do
   m <- getMode
   n <- getWord8
@@ -155,8 +161,9 @@ getHeader = do
   when (d  < n) $ failGet "denominator is smaller than numerator"
   dr <- getDirection
   c <- get
+  bz <- get
   l <- getWord8
-  return (m,n,d,dr,c,l)
+  return (m,n,d,dr,c,bz,l)
 
 {- Compression algorithm
 
@@ -268,7 +275,7 @@ fromRight e =
 --   In spite of seeming partial (since 'createBinaryStore' returns an 'Either' value), this
 --   function is total.
 createBinaryStoreDefault :: BinaryStoreValue a => BinList a -> BinaryStore
-createBinaryStoreDefault = fromRight . createBinaryStore FromLeft 1 2 True
+createBinaryStoreDefault = fromRight . createBinaryStore FromLeft 1 2 True True
 
 -- | Create a binary store from a binary list, using some configurations.
 --   The denominator of the average constant must be greater or equal to
@@ -278,28 +285,31 @@ createBinaryStore :: BinaryStoreValue a
                   -> Word8     -- ^ Average constant numerator
                   -> Word8     -- ^ Average constant denominator
                   -> Bool      -- ^ Whether to use zero compression or not
+                  -> Bool      -- ^ Whether to use bzip compression or not
                   -> BinList a -- ^ Input list
                   -> Either String BinaryStore
-createBinaryStore dr n d c xs =
+createBinaryStore dr n d c bz xs =
   if d == 0
      then Left "denominator is zero"
      else if d < n
              then Left "denominator is smaller than numerator"
-             else Right $ BinaryStore (modeValue $ BL.head xs) n d dr c (fromIntegral $ BL.lengthIndex xs) $
+             else Right $ BinaryStore (modeValue $ BL.head xs) n d dr c bz (fromIntegral $ BL.lengthIndex xs) $
                     let p     = fromIntegral n / fromIntegral d
                         trans = (if dr == FromLeft
                                     then leftBinaryTransform
                                     else rightBinaryTransform) $ averageBijection p
-                        comp  = if c then compress else id
-                    in  comp $ BLS.encData $ BLS.encodeBinList putValue dr $ direct trans xs
+                        comp  = if c  then    compress else id
+                        comp2 = if bz then BZ.compress else id
+                    in  comp2 . comp $ BLS.encData $ BLS.encodeBinList putValue dr $ direct trans xs
 
 -- | Read a binary store and build a 'Decoded' value. The 'Decoded' value is a list of partial results of
 --   increasing size (1, 2, 4, 8, etc) that ends in either a decoding error or a final result. These partial
 --   results are generated lazily from the binary store data.
 readBinaryStore :: BinaryStoreValue a => BinaryStore -> Decoded a
 readBinaryStore bs =
-  let decomp  = if bsCompression bs then decompress else id
-      encd    = BLS.EncodedBinList (bsDirection bs) (fromIntegral $ bsLength bs) $ decomp $ bsData bs
+  let decomp  = if bsCompression bs then    decompress else id
+      decomp2 = if bsBZip        bs then BZ.decompress else id
+      encd    = BLS.EncodedBinList (bsDirection bs) (fromIntegral $ bsLength bs) $ decomp . decomp2 $ bsData bs
       p       = averageConstant bs
       detrans = (if bsDirection bs == FromLeft
                     then leftInverseBinaryTransformDec

@@ -1,0 +1,171 @@
+
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\author{Daniel Díaz \\ Plow Technologies}
+\title{Experiments with Binary Stores}
+
+\linespread{1.4}
+
+\begin{document}
+
+\maketitle
+
+\begin{haskellpragmas}
+{-# LANGUAGE OverloadedStrings #-}
+\end{haskellpragmas}
+
+\begin{writehaskell}
+import Data.BinaryList (BinList)
+import Data.BinaryList.Serialize (Direction (..))
+import qualified Data.BinaryList as BL
+import Format.BinaryStore
+import System.Random
+import Data.Maybe (fromJust)
+import Text.LaTeX
+import Text.LaTeX.Packages.AMSMath (math)
+import qualified Data.ByteString.Lazy as B
+import Codec.Compression.BZip (compress)
+import Data.Int (Int64)
+import Control.Monad (replicateM)
+
+instance Texy Int64 where
+  texy = texy . (fromIntegral :: Int64 -> Int)
+
+randomValues :: Int -- ^ Length index
+             -> Int -- ^ Probability numerator
+             -> Int -- ^ Probability denominator
+             -> IO (BinList (Maybe Double))
+randomValues li a b = do
+  let n = 2^li
+      p :: Double
+      p = fromIntegral a / fromIntegral b
+  g1 <- newStdGen
+  let qs = take n $ randomRs (0,1) g1
+  g2 <- newStdGen
+  let vs = take n $ randoms g2
+      f q x = if q <= p then Just x else Nothing
+      xs = zipWith f qs vs
+  return $ fromJust $ BL.fromList xs
+
+experimentRow :: Int -- ^ Length index
+              -> Int -- ^ Probability numerator
+              -> Int -- ^ Probability denominator
+              -> IO LaTeX
+experimentRow li a b = do
+  xs <- randomValues li a b
+  let bszc = createBinaryStoreDefault xs
+      Right bs = createBinaryStore FromLeft 1 2 False xs
+      ebszc = encode bszc
+      lebszc = B.length ebszc
+      cebszc = compress ebszc
+      lcebszc = B.length cebszc
+      ebs = encode bs
+      lebs = B.length ebs
+      cebs = compress ebs
+      lcebs = B.length cebs
+      m = minimum [lebszc, lcebszc, lebs, lcebs]
+      texyI l = (if l == m then textbf else id) (texy l)
+      row = -- Length of the list
+            texy (BL.length xs)
+            -- Density of values
+          & math (texy a / texy b)
+            -- Size of binary store
+          & texyI lebs
+            -- Size of compressed binary store
+          & texyI lcebs
+            -- Size of binary store (ZC)
+          & texyI lebszc
+            -- Size of compressed binary store (ZC)
+          & texyI lcebszc
+  return $ row <> lnbk
+
+experimentTable :: IO LaTeX
+experimentTable = do
+  rs <- sequence
+          [ experimentRow  5 0 4
+          , experimentRow  5 1 4
+          , experimentRow  5 2 4
+          , experimentRow  5 3 4
+          , experimentRow  5 4 4
+
+          , return hline
+
+          , experimentRow 10 0 4
+          , experimentRow 10 1 4
+          , experimentRow 10 2 4
+          , experimentRow 10 3 4
+          , experimentRow 10 4 4
+
+          , return hline
+
+          , experimentRow 15 0 4
+          , experimentRow 15 1 4
+          , experimentRow 15 2 4
+          , experimentRow 15 3 4
+          , experimentRow 15 4 4
+
+          , return hline
+
+          , experimentRow 20 0 4
+          , experimentRow 20 1 4
+          , experimentRow 20 2 4
+          , experimentRow 20 3 4
+          , experimentRow 20 4 4
+
+            ]
+  let spec = replicate 6 CenterColumn
+  return $ tabular Nothing spec $
+       ("Length" & "Density" & "BS Size" & "BS Size (bzip)" & "BS Size (ZC)" & "BS Size (bzip, ZC)")
+    <> lnbk
+    <> hline
+    <> mconcat rs
+\end{writehaskell}
+
+The table displayed below shows size statistics over randomly generated inputs after applying
+different compression methods. For each row, a random binary list with a fixed size is generated
+containing values with holes (Haskell \texttt{Maybe Double} values). The table shows the length
+of the generated list and the probability of a single entry to be full (density). The acronym BS
+stands for Binary Store (we use an acronym so the width of the table does not exceed the width
+of the page). After the density, the size of the uncompressed binary store is shown, followed
+by its size after being compressed by different methods. Method \emph{bzip} uses the
+\href{http://hackage.haskell.org/package/bzlib}{bzlib library}. Method \emph{ZC} refers to our
+custom Zero Compression method. The last column shows the size of combining both of them, applying
+the Zero Compression first. Apparently, with large enough inputs, the combination of bzip and ZC suits
+better when the density is less than $\frac{1}{4}$, and bzip alone works better when the density is greater
+than $\frac{1}{2}$. More fine grained tests should be performed using densities within an interval
+where most real world cases have their density. All sizes are given in bytes. Smallest sizes are highlighted.
+
+\newpage
+
+\noindent
+\begin{center}
+\iohatex{experimentTable}
+\end{center}
+
+\newpage
+
+\begin{writehaskell}
+
+experimentSize :: Int
+experimentSize = 20
+
+experimentNum :: Int
+experimentNum = 1
+
+experimentDen :: Int
+experimentDen = 15
+
+\end{writehaskell}
+
+The next table shows repeated experiments with length \hatex{texy $ (2 :: Int)^experimentSize} and density
+$\frac{\hatex{texy experimentNum}}{\hatex{texy experimentDen}}$.
+
+\begin{tabular}{cccccc}
+Length & Density & BS Size & BS Size (bzip) & BS Size (ZC) & BS Size (bzip,ZC) \\
+\hline
+\iohatex{fmap mconcat $ replicateM 10 $ experimentRow experimentSize experimentNum experimentDen}
+\end{tabular}
+
+\end{document}

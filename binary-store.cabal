@@ -13,9 +13,9 @@ cabal-version:       >=1.10
 library
   exposed-modules: Format.BinaryStore
   build-depends: base == 4.*
-               , binary-list >=0.3 && <0.4
-               , bytestring >=0.10 && <0.11
-               , binary >=0.7 && <0.8
+               , binary-list >= 0.3
+               , bytestring >= 0.10
+               , binary >= 0.7
                , reinterpret-cast
                , binary-transform
                , bzlib

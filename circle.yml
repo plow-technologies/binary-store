@@ -12,7 +12,7 @@ dependencies:
     # Start sandbox and install dependencies
     - cabal sandbox init
     - cabal sandbox add-source binary-transform
-    - cabal install --only-dependencies -j8
+    - cabal install --enable-tests --only-dependencies -j8
 
 test:
   override:

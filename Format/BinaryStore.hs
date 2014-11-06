@@ -41,7 +41,7 @@ module Format.BinaryStore (
     , bsData
     ) where
 
-import Control.Applicative (Applicative (..),(<$>))
+import Control.Applicative (Applicative (..),Alternative (..), (<$>))
 import Control.Monad (when)
 import Control.Arrow ((***))
 
@@ -72,6 +72,9 @@ import Data.BinaryList.Algorithm.BinaryTransform
 -- BZip compression
 import qualified Codec.Compression.BZip as BZ
 
+-- Deep evaluation
+import Control.DeepSeq (NFData (..),deepseq)
+
 -- Utils
 
 -- | A custom error message for parsing errors in this module.
@@ -83,18 +86,25 @@ failGet str = fail $ "binary-store: " ++ str
 
 data Pos = L | R deriving (Eq,Show)
 
+instance NFData Pos where
+
 -- | A /t-value/ is either empty (a 'hole') or filled.
 --   Use 'pure' to build filled values.
 data TValue a = Hole | Full [Pos] a deriving (Eq,Show)
 
 -- | An empty t-value.
 hole :: TValue a
+{-# INLINE hole #-}
 hole = Hole
 
 -- | Extract a value from a 'TValue', if it contains any.
 fromTValue :: TValue a -> Maybe a
 fromTValue (Full _ x) = Just x
 fromTValue _ = Nothing
+
+instance NFData a => NFData (TValue a) where
+  rnf (Full ps x) = ps `deepseq` x `deepseq` ()
+  rnf _ = ()
 
 instance Functor TValue where
   fmap _ Hole = Hole
@@ -105,6 +115,11 @@ instance Applicative TValue where
   Hole <*> _ = Hole
   _ <*> Hole = Hole
   Full ps f <*> Full ps' x = Full (ps ++ ps') (f x)
+
+instance Alternative TValue where
+  empty = Hole
+  tv@(Full _ _) <|> _ = tv
+  _ <|> tv = tv
 
 {- Applicative law proofs for TValue
 

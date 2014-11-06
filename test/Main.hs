@@ -1,5 +1,5 @@
 
-import Data.BinaryList (BinList)
+import Data.BinaryList (BinList,Exponent)
 import qualified Data.BinaryList as BL
 import Data.BinaryList.Serialize (Direction (..), fromDecoded)
 import Format.BinaryStore
@@ -13,7 +13,7 @@ import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where
   arbitrary = do
-    l <- choose (0,12 :: Int)
+    l <- choose (0,12 :: Exponent)
     BL.replicateA l arbitrary
 
 instance Arbitrary Direction where

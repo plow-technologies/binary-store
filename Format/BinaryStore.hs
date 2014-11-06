@@ -440,7 +440,7 @@ createBinaryStore dr n d c bz xs =
      then Left "denominator is zero"
      else if d < n
              then Left "denominator is smaller than numerator"
-             else Right $ BinaryStore (modeValue $ BL.head xs) n d dr c bz (fromIntegral $ BL.lengthIndex xs) $
+             else Right $ BinaryStore (modeValue $ BL.head xs) n d dr c bz (BL.lengthExponent xs) $
                     let p     = fromIntegral n / fromIntegral d
                         trans = (if dr == FromLeft
                                     then leftBinaryTransform
@@ -456,7 +456,7 @@ readBinaryStore :: BinaryStoreValue a => BinaryStore -> Decoded a
 readBinaryStore bs =
   let decomp  = if bsCompression bs then    decompress else id
       decomp2 = if bsBZip        bs then BZ.decompress else id
-      encd    = BLS.EncodedBinList (bsDirection bs) (fromIntegral $ bsLength bs) $ decomp . decomp2 $ bsData bs
+      encd    = BLS.EncodedBinList (bsDirection bs) (bsLength bs) $ decomp . decomp2 $ bsData bs
       p       = averageConstant bs
       detrans = (if bsDirection bs == FromLeft
                     then leftInverseBinaryTransformDec

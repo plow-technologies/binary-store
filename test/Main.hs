@@ -8,7 +8,7 @@ import Test.Tasty
 import qualified Test.Tasty.QuickCheck as QC
 import Test.QuickCheck
 
-import Control.Applicative ((<$>),(<*>))
+import Control.Applicative (pure,(<$>))
 import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where
@@ -19,11 +19,8 @@ instance Arbitrary a => Arbitrary (BinList a) where
 instance Arbitrary Direction where
   arbitrary = elements [FromLeft,FromRight]
 
-instance Arbitrary Pos where
-  arbitrary = elements [L,R]
-
 instance Arbitrary a => Arbitrary (TValue a) where
-  arbitrary = oneof [return Hole, Full <$> arbitrary <*> arbitrary]
+  arbitrary = oneof [pure hole, pure <$> arbitrary]
 
 -- Approximately equal class
 
@@ -47,9 +44,7 @@ instance Approx a => Approx (Maybe a) where
   _ ~= _ = False
 
 instance Approx a => Approx (TValue a) where
-  Full ps x ~= Full ps' y = (ps == ps') && (x ~= y)
-  Hole ~= Hole = True
-  _ ~= _ = False
+  tv ~= tv' = fromTValue tv ~= fromTValue tv'
 
 --
 

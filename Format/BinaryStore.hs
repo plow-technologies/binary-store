@@ -24,8 +24,9 @@ module Format.BinaryStore (
       -- * Class of storable values
     , BinaryStoreValue
       -- * TValues
-    , Pos (..)
-    , TValue (..)
+    , TValue
+    , hole
+    , fromTValue
       -- * Information
       -- | Some functions to get information about a binary store.
     , Mode (..)
@@ -82,7 +83,18 @@ failGet str = fail $ "binary-store: " ++ str
 
 data Pos = L | R deriving (Eq,Show)
 
+-- | A /t-value/ is either empty (a 'hole') or filled.
+--   Use 'pure' to build filled values.
 data TValue a = Hole | Full [Pos] a deriving (Eq,Show)
+
+-- | An empty t-value.
+hole :: TValue a
+hole = Hole
+
+-- | Extract a value from a 'TValue', if it contains any.
+fromTValue :: TValue a -> Maybe a
+fromTValue (Full _ x) = Just x
+fromTValue _ = Nothing
 
 instance Functor TValue where
   fmap _ Hole = Hole

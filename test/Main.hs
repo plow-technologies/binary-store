@@ -8,6 +8,7 @@ import Test.Tasty
 import qualified Test.Tasty.QuickCheck as QC
 import Test.QuickCheck
 
+import Control.Applicative ((<$>),(<*>))
 import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where
@@ -18,9 +19,11 @@ instance Arbitrary a => Arbitrary (BinList a) where
 instance Arbitrary Direction where
   arbitrary = elements [FromLeft,FromRight]
 
-instance Show Direction where
-  show FromLeft = "FromLeft"
-  show FromRight = "FromRight"
+instance Arbitrary Pos where
+  arbitrary = elements [L,R]
+
+instance Arbitrary a => Arbitrary (TValue a) where
+  arbitrary = oneof [return Hole, Full <$> arbitrary <*> arbitrary]
 
 -- Approximately equal class
 
@@ -41,6 +44,11 @@ instance Approx a => Approx (Either e a) where
 instance Approx a => Approx (Maybe a) where
   Just x ~= Just y = x ~= y
   Nothing ~= Nothing = True
+  _ ~= _ = False
+
+instance Approx a => Approx (TValue a) where
+  Full ps x ~= Full ps' y = (ps == ps') && (x ~= y)
+  Hole ~= Hole = True
   _ ~= _ = False
 
 --
@@ -70,5 +78,17 @@ main = defaultMain $ testGroup "binary-store"
          $ \d          -> forAll (choose (0,d))
          $ \n          -> ( createBinaryStore dr n d c bz xs >>= decode . encode >>= fromDecoded . readBinaryStore )
                        ~= Right (xs :: BinList (Maybe Double))
+      ]
+  , testGroup "TValue Double"
+    [ QC.testProperty "read/create"
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList (TValue Double))
+    , QC.testProperty "read/decode/encode/create"
+         $ \xs dr c bz -> forAll (choose (1,255))
+         $ \d          -> forAll (choose (0,d))
+         $ \n          -> ( createBinaryStore dr n d c bz xs >>= decode . encode >>= fromDecoded . readBinaryStore )
+                       ~= Right (xs :: BinList (TValue Double))
       ]
     ]

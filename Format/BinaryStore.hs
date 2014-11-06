@@ -23,6 +23,9 @@ module Format.BinaryStore (
     , readBinaryStore
       -- * Class of storable values
     , BinaryStoreValue
+      -- * TValues
+    , Pos (..)
+    , TValue (..)
       -- * Information
       -- | Some functions to get information about a binary store.
     , Mode (..)
@@ -37,7 +40,7 @@ module Format.BinaryStore (
     , bsData
     ) where
 
-import Control.Applicative ((<$>))
+import Control.Applicative (Applicative (..),(<$>))
 import Control.Monad (when)
 import Control.Arrow ((***))
 
@@ -74,6 +77,91 @@ import qualified Codec.Compression.BZip as BZ
 failGet :: String -> Get a
 failGet str = fail $ "binary-store: " ++ str
 
+----------
+-- TValues
+
+data Pos = L | R deriving (Eq,Show)
+
+data TValue a = Hole | Full [Pos] a deriving (Eq,Show)
+
+instance Functor TValue where
+  fmap _ Hole = Hole
+  fmap f (Full ps x) = Full ps (f x)
+
+instance Applicative TValue where
+  pure = Full []
+  Hole <*> _ = Hole
+  _ <*> Hole = Hole
+  Full ps f <*> Full ps' x = Full (ps ++ ps') (f x)
+
+{- Applicative law proofs for TValue
+
+* Identity
+
+pure id <*> v
+  = Full [] id <*> v
+  = case v of
+      Hole -> Hole = v ##
+      Full ps x = Full ([] ++ ps) (id x) = v ##
+
+* Composition
+
+pure (.) <*> u <*> v <*> w
+  = Full [] (.) <*> u <*> v <*> w
+  = (Full [] (.) <*> u) <*> v <*> w
+  = case u of
+      Hole -> Hole <*> v <*> w = Hole = u <*> (v <*> w) ##
+      Full ps f -> Full ([] ++ ps) (f .) <*> v <*> w
+        = Full ps (f .) <*> v <*> w
+        = case v of
+            Hole -> Hole = u <*> (v <*> w) ##
+            Full ps' g -> Full (ps ++ ps') (f . g) <*> w
+              = case w of
+                  Hole -> Hole = u <*> (v <*> w) ##
+                  Full ps'' x = Full (ps ++ ps' ++ ps'') (f (g x))
+                    = Full (ps ++ (ps' ++ ps'')) (f (g x))
+                    = Full ps f <*> Full (ps' ++ ps'') (g x)
+                    = u <*> (v <*> w) ##
+
+* Homomorphism
+
+pure f <*> pure x
+  = Full [] f <*> Full [] x
+  = Full ([] ++ []) (f x)
+  = Full [] (f x)
+  = pure (f x) ##
+
+* Interchange
+
+u <*> pure y
+  = u <*> Full [] y
+  = case u of
+      Hole -> Hole = pure ($ y) <*> u ##
+      Full ps f -> Full (ps ++ []) (f y)
+        = Full ps (f y)
+        = Full ([] ++ ps) (($ y) f)
+        = Full [] ($ y) <*> Full ps f
+        = pure ($ y) <*> u ##
+
+-}
+
+putPosList :: [Pos] -> Put
+putPosList (x:xs) = do
+  case x of
+    L -> putWord8 0
+    R -> putWord8 1
+  putPosList xs
+putPosList [] = putWord8 2
+
+getPosList :: Get [Pos]
+getPosList = do
+  w <- getWord8
+  case w of
+    0 -> (L:) <$> getPosList
+    1 -> (R:) <$> getPosList
+    2 -> return []
+    _ -> failGet $ "unexpected pos (" ++ show w ++ ")"
+
 --------
 
 -- | Binary Store Mode. The Binary Store Mode indicates what
@@ -83,12 +171,15 @@ failGet str = fail $ "binary-store: " ++ str
 --
 -- * 'WithHoles': Each value is a 'Maybe' 'Double'.
 --
-data Mode = Plain | WithHoles
+-- * 'WithHoles2': Eavh is a 'TValue' 'Double'.
+--
+data Mode = Plain | WithHoles | WithHoles2
 
 -- | Serialization of modes.
 putMode :: Mode -> Put
 putMode Plain = putWord8 0
 putMode WithHoles = putWord8 1
+putMode WithHoles2 = putWord8 2
 
 -- | Deserialization of modes.
 getMode :: Get Mode
@@ -97,6 +188,7 @@ getMode = do
   case w of
     0 -> return Plain
     1 -> return WithHoles
+    2 -> return WithHoles2
     _ -> failGet $ "unrecognized mode (" ++ show w ++ ")"
 
 -- | Serialization of directions.
@@ -255,10 +347,40 @@ instance BinaryStoreValue a => BinaryStoreValue (Maybe a) where
   modeValue _ = WithHoles
   averageBijection p = Bijection f f'
     where
-      f  (Just x, Just y) = Just *** Just $ direct  (averageBijection p) (x,y)
+      b = averageBijection p
+      f  (Just x, Just y) = Just *** Just $ direct  b (x,y)
       f  v = v
-      f' (Just x, Just y) = Just *** Just $ inverse (averageBijection p) (x,y)
+      f' (Just x, Just y) = Just *** Just $ inverse b (x,y)
       f' v = v
+
+instance BinaryStoreValue a => BinaryStoreValue (TValue a) where
+  putValue Hole = putWord8 0
+  putValue (Full ps x) = putWord8 1 >> putPosList ps >> putValue x
+  getValue = do
+    b <- getWord8
+    case b of
+      0 -> return Hole
+      1 -> Full <$> getPosList <*> getValue
+      _ -> fail "getValue (TValue): invalid encoding"
+  modeValue _ = WithHoles2
+  averageBijection p = Bijection f f'
+    where
+      b = averageBijection p
+      f (Hole,Hole) = (Hole,Hole)
+      f (Hole,Full ps x) = (Full (R:ps) x, Hole)
+      f (Full ps x, Hole) = (Full (L:ps) x, Hole)
+      f (Full ps x, Full ps' y) =
+           Full ps *** Full ps' $ direct b (x,y)
+
+      f' (Hole,Hole) = (Hole,Hole)
+      f' (Full ps x, Hole) =
+           case ps of
+             L : t -> (Full t x, Hole)
+             R : t -> (Hole, Full t x)
+             _ -> error "Full: empty list"
+      f' (Full ps x, Full ps' y) =
+           Full ps *** Full ps' $ inverse b (x,y)
+      f' (Hole, Full _ _) = error "f inverse: right full"
 
 {-# INLINE fromRight #-}
 

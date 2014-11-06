@@ -25,7 +25,6 @@ module Format.BinaryStore (
     , BinaryStoreValue
       -- * TValues
     , TValue
-    , hole
     , fromTValue
       -- * Information
       -- | Some functions to get information about a binary store.
@@ -88,14 +87,9 @@ data Pos = L | R deriving (Eq,Show)
 
 instance NFData Pos where
 
--- | A /t-value/ is either empty (a 'hole') or filled.
---   Use 'pure' to build filled values.
+-- | A /t-value/ is either empty or filled.
+--   Use 'pure' and 'empty' to build t-values.
 data TValue a = Hole | Full [Pos] a deriving (Eq,Show)
-
--- | An empty t-value.
-hole :: TValue a
-{-# INLINE hole #-}
-hole = Hole
 
 -- | Extract a value from a 'TValue', if it contains any.
 fromTValue :: TValue a -> Maybe a
@@ -107,17 +101,21 @@ instance NFData a => NFData (TValue a) where
   rnf _ = ()
 
 instance Functor TValue where
+  {-# INLINE fmap #-}
   fmap _ Hole = Hole
   fmap f (Full ps x) = Full ps (f x)
 
 instance Applicative TValue where
+  {-# INLINE pure #-}
   pure = Full []
-  Hole <*> _ = Hole
-  _ <*> Hole = Hole
+  {-# INLINE (<*>) #-}
   Full ps f <*> Full ps' x = Full (ps ++ ps') (f x)
+  _ <*> _ = Hole
 
 instance Alternative TValue where
+  {-# INLINE empty #-}
   empty = Hole
+  {-# INLINE (<|>) #-}
   tv@(Full _ _) <|> _ = tv
   _ <|> tv = tv
 

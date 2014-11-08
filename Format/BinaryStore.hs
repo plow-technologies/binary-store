@@ -1,4 +1,6 @@
 
+{-# LANGUAGE DeriveGeneric #-}
+
 -- | A /Binary Store/ is a data format that stores a sequence of values
 --   encoded using the binary transform. Therefore, it use is restricted
 --   to binary lists, i.e. lists whose length is a power of two.
@@ -61,6 +63,7 @@ import Data.Binary (Binary (..))
 import Data.Binary.Put ( Put,runPut,putWord8,putWord64le
                        , putByteString,putLazyByteString )
 import Data.Binary.Get (Get,runGetOrFail,getWord8,getWord64le)
+import GHC.Generics (Generic)
 
 -- Casting from/to Double
 import Data.ReinterpretCast (doubleToWord,wordToDouble)
@@ -83,13 +86,15 @@ failGet str = fail $ "binary-store: " ++ str
 ----------
 -- TValues
 
-data Pos = L | R deriving (Eq,Show)
+data Pos = L | R deriving (Eq,Show,Generic)
 
-instance NFData Pos where
+instance NFData Pos
+
+instance Binary Pos
 
 -- | A /t-value/ is either empty or filled.
 --   Use 'pure' and 'empty' to build t-values.
-data TValue a = Hole | Full [Pos] a deriving (Eq,Show)
+data TValue a = Hole | Full [Pos] a deriving (Eq,Show,Generic)
 
 -- | Extract a value from a 'TValue', if it contains any.
 fromTValue :: TValue a -> Maybe a
@@ -99,6 +104,8 @@ fromTValue _ = Nothing
 instance NFData a => NFData (TValue a) where
   rnf (Full ps x) = ps `deepseq` x `deepseq` ()
   rnf _ = ()
+
+instance Binary a => Binary (TValue a)
 
 instance Functor TValue where
   {-# INLINE fmap #-}

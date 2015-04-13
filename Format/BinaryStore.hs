@@ -28,6 +28,7 @@ module Format.BinaryStore (
       -- * TValues
     , TValue
     , fromTValue
+    , toTValue
       -- * Information
       -- | Some functions to get information about a binary store.
     , Mode (..)
@@ -100,6 +101,10 @@ data TValue a = Hole | Full [Pos] a deriving (Eq,Show,Generic)
 fromTValue :: TValue a -> Maybe a
 fromTValue (Full _ x) = Just x
 fromTValue _ = Nothing
+
+toTValue :: Maybe a -> TValue a
+toTValue (Maybe x) = Full [] x
+toTValue _ = Hole
 
 instance NFData a => NFData (TValue a) where
   rnf (Full ps x) = ps `deepseq` x `deepseq` ()
@@ -401,8 +406,7 @@ instance BinaryStoreValue a => BinaryStoreValue (TValue a) where
       f (Hole,Hole) = (Hole,Hole)
       f (Hole,Full ps x) = (Full (R:ps) x, Hole)
       f (Full ps x, Hole) = (Full (L:ps) x, Hole)
-      f (Full ps x, Full ps' y) =
-           Full ps *** Full ps' $ direct b (x,y)
+      f (Full ps x, Full ps' y) = Full ps *** Full ps' $ direct b (x,y)
 
       f' (Hole,Hole) = (Hole,Hole)
       f' (Full ps x, Hole) =

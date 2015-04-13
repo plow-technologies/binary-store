@@ -103,7 +103,7 @@ fromTValue (Full _ x) = Just x
 fromTValue _ = Nothing
 
 toTValue :: Maybe a -> TValue a
-toTValue (Maybe x) = Full [] x
+toTValue (Just x) = Full [] x
 toTValue _ = Hole
 
 instance NFData a => NFData (TValue a) where

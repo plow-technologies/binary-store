@@ -8,7 +8,7 @@ import Test.Tasty
 import qualified Test.Tasty.QuickCheck as QC
 import Test.QuickCheck
 
-import Control.Applicative (pure,empty,(<$>))
+import Control.Applicative (empty)
 import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where

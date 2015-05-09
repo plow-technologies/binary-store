@@ -1,6 +1,6 @@
 machine:
   ghc:
-    version: 7.8.3
+    version: 7.10.1
 
 dependencies:
 
@@ -19,3 +19,10 @@ test:
     - cabal configure --enable-tests --ghc-options=-Werror
     - cabal build
     - cabal test
+
+deployment:
+  staging:
+    branch: master
+    commands:
+      - git clone git@github.com:plow-technologies/plow-scripts.git
+      - sh plow-scripts/hackagecircle.sh

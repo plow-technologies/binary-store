@@ -6,8 +6,8 @@ dependencies:
 
   override:
     # GHC-7.10
-    # - wget https://raw.githubusercontent.com/Daniel-Diaz/personal-shell-scripts/master/circlecighc710.sh
-    # - sh circlecighc710.sh
+    - wget https://raw.githubusercontent.com/Daniel-Diaz/personal-shell-scripts/master/circlecighc710.sh
+    - sh circlecighc710.sh
     # Update cabal to create the standard cabal file
     - cabal update
     # Clone binary-transform repo

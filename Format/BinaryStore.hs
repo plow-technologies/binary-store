@@ -1,5 +1,5 @@
 
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 
 -- | A /Binary Store/ is a data format that stores a sequence of values
 --   encoded using the binary transform. Therefore, it use is restricted
@@ -77,6 +77,11 @@ import qualified Codec.Compression.BZip as BZ
 
 -- Deep evaluation
 import Control.DeepSeq (NFData (..),deepseq)
+
+-- GHC-7.8.3
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative (..))
+#endif
 
 -- Utils
 

@@ -80,7 +80,7 @@ import Control.DeepSeq (NFData (..),deepseq)
 
 -- GHC-7.8.3
 #if !MIN_VERSION_base(4,8,0)
-import Control.Applicative (Applicative (..))
+import Control.Applicative (Applicative (..), (<$>))
 #endif
 
 -- Utils

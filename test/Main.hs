@@ -1,4 +1,6 @@
 
+{-# LANGUAGE CPP #-}
+
 import Data.BinaryList (BinList,Exponent)
 import qualified Data.BinaryList as BL
 import Data.BinaryList.Serialize (Direction (..), fromDecoded)
@@ -9,6 +11,9 @@ import qualified Test.Tasty.QuickCheck as QC
 import Test.QuickCheck
 
 import Control.Applicative (empty)
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (pure, (<$>))
+#endif
 import qualified Data.Foldable as F
 
 instance Arbitrary a => Arbitrary (BinList a) where

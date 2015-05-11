@@ -43,7 +43,7 @@ module Format.BinaryStore (
     , bsData
     ) where
 
-import Control.Applicative (Alternative (..))
+import Control.Applicative (Alternative (..), Applicative(..), (<$>))
 import Control.Monad (when)
 import Control.Arrow ((***))
 

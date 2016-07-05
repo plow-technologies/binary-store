@@ -24,7 +24,7 @@ module Format.BinaryStore (
     , createBinaryStoreDefault
     , readBinaryStore
       -- * Class of storable values
-    , BinaryStoreValue
+    , BinaryStoreValue (averageBijection)
       -- * TValues
     , TValue
     , fromTValue

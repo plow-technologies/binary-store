@@ -472,7 +472,7 @@ bsDataDecompressed :: BinaryStore -> ByteString
 bsDataDecompressed bs =
   let decomp  = if bsCompression bs then    decompress else id
       decomp2 = if bsBZip        bs then BZ.decompress else id
-  decomp $ decomp2 $ bsData bs
+  in  decomp $ decomp2 $ bsData bs
 
 -- | Read a binary store and build a 'Decoded' value. The 'Decoded' value is a list of partial results of
 --   increasing size (1, 2, 4, 8, etc) that ends in either a decoding error or a final result. These partial

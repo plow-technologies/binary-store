@@ -480,7 +480,7 @@ bsDataDecompressed bs =
 readBinaryStore :: BinaryStoreValue a => BinaryStore -> Decoded a
 {-# INLINE readBinaryStore #-}
 readBinaryStore bs =
-  let encd    = BLS.EncodedBinList (bsDirection bs) (bsLength bs) $ decomp . decomp2 $ bsDataDecompressed bs
+  let encd    = BLS.EncodedBinList (bsDirection bs) (bsLength bs) $ bsDataDecompressed bs
       p       = averageConstant bs
       detrans = (if bsDirection bs == FromLeft
                     then leftInverseBinaryTransformDec

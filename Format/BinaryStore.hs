@@ -41,6 +41,7 @@ module Format.BinaryStore (
     , bsBZip
     , bsLength
     , bsData
+    , bsDataDecompressed
     ) where
 
 import Control.Applicative (Alternative (..))
@@ -465,14 +466,21 @@ createBinaryStore dr n d c bz xs =
                         comp2 = if bz then BZ.compress else id
                     in  comp2 . comp $ BLS.encData $ BLS.encodeBinList putValue dr $ direct trans xs
 
+-- | Extract raw data decompressed.
+bsDataDecompressed :: BinaryStore -> ByteString
+{-# INLINE bsDataDecompressed #-}
+bsDataDecompressed bs =
+  let decomp  = if bsCompression bs then    decompress else id
+      decomp2 = if bsBZip        bs then BZ.decompress else id
+  decomp $ decomp2 $ bsData bs
+
 -- | Read a binary store and build a 'Decoded' value. The 'Decoded' value is a list of partial results of
 --   increasing size (1, 2, 4, 8, etc) that ends in either a decoding error or a final result. These partial
 --   results are generated lazily from the binary store data.
 readBinaryStore :: BinaryStoreValue a => BinaryStore -> Decoded a
+{-# INLINE readBinaryStore #-}
 readBinaryStore bs =
-  let decomp  = if bsCompression bs then    decompress else id
-      decomp2 = if bsBZip        bs then BZ.decompress else id
-      encd    = BLS.EncodedBinList (bsDirection bs) (bsLength bs) $ decomp . decomp2 $ bsData bs
+  let encd    = BLS.EncodedBinList (bsDirection bs) (bsLength bs) $ decomp . decomp2 $ bsDataDecompressed bs
       p       = averageConstant bs
       detrans = (if bsDirection bs == FromLeft
                     then leftInverseBinaryTransformDec

@@ -1,14 +1,28 @@
 machine:
+  pre:
+    - sudo add-apt-repository ppa:hvr/ghc -y
+    - echo 'deb http://download.fpcomplete.com/ubuntu trusty main'|sudo tee /etc/apt/sources.list.d/fpco.list
+    - sudo apt-get update
+    - sudo apt-get install gcc-4.8
+    - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 90
+    - gcc --version
   ghc:
-    version: 7.8.3
+    version: 7.10.2
+  
+  environment:
+    PATH: /opt/ghc/7.10.3/bin/:$HOME/.cabal/bin:$CIRCLE_ARTIFACTS:$PATH:$HOME/$CIRCLE_PROJECT_REPONAME/.cabal-sandbox/bin
 
 dependencies:
-
+  cache_directories:
+    - "~/.cabal"
+    - "~/ghc"
+    
   override:
-    # GHC-7.10
-    - wget https://raw.githubusercontent.com/Daniel-Diaz/personal-shell-scripts/master/circlecighc710.sh
-    - sh circlecighc710.sh
-    # Update cabal to create the standard cabal file
+    - ghc --version
+    - if [ -d ~/ghc ]; then sudo cp -r ~/ghc /opt; fi
+    - if ghc --version | grep 7.10.3; then echo "Version 7.10.3"; else sudo apt-get install ghc-7.10.3 -y && 
+       sudo cp -r /opt/ghc $HOME/ghc && echo "copy complete"; fi
+    - ghc --version
     - cabal update
     # Clone binary-transform repo
     - git clone https://github.com/plow-technologies/binary-transform.git

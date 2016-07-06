@@ -42,4 +42,4 @@ deployment:
     branch: master
     commands:
       - git clone git@github.com:plow-technologies/plow-scripts.git
-      - sh plow-scripts/hackagecircle.sh
+      - sh plow-scripts/hackage.sh

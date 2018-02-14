@@ -1,0 +1,6 @@
+resolver: lts-7.4
+
+extra-deps:
+- git: git@github.com:plow-technologies/binary-transform.git
+  commit: 17c2a056769f24d7e91be94cbd03a47c62f0b62b
+

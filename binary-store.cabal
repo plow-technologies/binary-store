@@ -36,3 +36,11 @@ test-suite binary-store-tests
                , binary-list
                , binary-store
   ghc-options: -Wall -fno-warn-orphans
+
+benchmark binary-store-bench
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: bench
+  ghc-options: -O2 -Wall
+  build-depends: base, criterion, binary-store, bytestring, random, binary-list

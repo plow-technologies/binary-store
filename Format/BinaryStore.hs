@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric, CPP #-}
 
 -- | A /Binary Store/ is a data format that stores a sequence of values
---   encoded using the binary transform. Therefore, it use is restricted
+--   encoded using the binary transform. Therefore, its use is restricted
 --   to binary lists, i.e. lists whose length is a power of two.
 --
 --   To create a binary store from a binary list use 'createBinaryStore'.

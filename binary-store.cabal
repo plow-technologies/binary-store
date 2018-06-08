@@ -24,7 +24,7 @@ library
                , bzlib
                , deepseq
   default-language: Haskell2010
-  ghc-options: -O2 -Wall -Werror
+  ghc-options: -O2 -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Werror
 
 test-suite binary-store-tests
   default-language: Haskell2010
